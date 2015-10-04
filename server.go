@@ -43,6 +43,9 @@ type purchasedStock struct {
 	price          float64
 }
 
+//array to store purchased stocks for using in GetStockDetails function
+var stockDataObjectArray []purchasedStock
+
 // stockObjectArray - To save arrays of purchasedStock items
 var stockObjectArray []savedStockObject
 
@@ -169,7 +172,7 @@ func (t *Stock) Buy(args *Args, reply *string) error {
 }
 
 //StockDetails struct - To get StockDetails based on tradeID
-func (t *Stock) GetStockDetails(id string, reply *StockResponse) error {
+func (t *Stock) GetStockDetails(id string, reply *string) error {
 	// var oldValuesArray []oldStockValues
 	var queryParamBuilder string
 	intID, err := strconv.Atoi(id)
@@ -179,6 +182,7 @@ func (t *Stock) GetStockDetails(id string, reply *StockResponse) error {
 				count := 0
 				// oldValuesArray := stockObjectArray[i].stocks
 				arrayLength := len(stockObjectArray[i].stocks)
+				stockDataObjectArray = stockObjectArray[i].stocks
 				for k := 0; k < arrayLength; k++ {
 					if count == 0 {
 						queryParamBuilder = stockObjectArray[i].stocks[k].symbol
@@ -187,7 +191,6 @@ func (t *Stock) GetStockDetails(id string, reply *StockResponse) error {
 					}
 					count++
 				}
-
 			}
 		}
 		url := fmt.Sprintf("http://finance.yahoo.com/webservice/v1/symbols/%s/quote?format=json", queryParamBuilder)
@@ -211,14 +214,36 @@ func (t *Stock) GetStockDetails(id string, reply *StockResponse) error {
 			panic(err)
 		}
 
+		stockQueryData := stock.List.Resources
+		var responseString string
+		var currentValue float64
 		// test struct data
-
+		for i := 0; i < len(stockDataObjectArray); i++ {
+			for k := 0; k < len(stockQueryData); k++ {
+				if stockDataObjectArray[i].symbol == stockQueryData[k].Resource.Fields.Symbol {
+					newPrice := stockQueryData[k].Resource.Fields.Price
+					convertedPrice, err := strconv.ParseFloat(newPrice, 64)
+					if err != nil {
+						fmt.Println("Error")
+					}
+					oldPrice := stockDataObjectArray[i].price
+					if (oldPrice - convertedPrice) > 0 {
+						responseString = responseString + stockDataObjectArray[i].symbol + ":" + strconv.Itoa(stockDataObjectArray[i].numberOfStocks) + ": -" + newPrice + " "
+					} else if (oldPrice - convertedPrice) < 0 {
+						responseString = responseString + stockDataObjectArray[i].symbol + ":" + strconv.Itoa(stockDataObjectArray[i].numberOfStocks) + ": +" + newPrice + " "
+					} else if (oldPrice - convertedPrice) == 0 {
+						responseString = responseString + stockDataObjectArray[i].symbol + ":" + strconv.Itoa(stockDataObjectArray[i].numberOfStocks) + ": " + newPrice + " "
+					}
+					currentValue = currentValue + (convertedPrice * float64(stockDataObjectArray[i].numberOfStocks))
+				}
+			}
+		}
+		*reply = "stock" + ":" + responseString + "\n" + "currentMarketValue: " + strconv.FormatFloat(currentValue, 'f', -1, 64)
+		
 	}
 	return nil
 }
 func main() {
-	stockObjectMap := make(map[int]savedStockObject)
-	fmt.Println(stockObjectMap)
 	stock := new(Stock)
 	rpc.Register(stock)
 

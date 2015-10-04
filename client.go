@@ -27,11 +27,12 @@ func main() {
 			log.Fatal("dialing:", err)
 		}
 
-		var reply StockResponse
+		var reply string
 		err = client.Call("Stock.GetStockDetails", os.Args[1], &reply)
 		if err != nil {
 			log.Fatal("stock error:", err)
 		}
+		fmt.Println(reply)
 	}
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: ", os.Args[0], "server")
